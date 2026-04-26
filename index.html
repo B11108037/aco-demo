@@ -1,0 +1,1042 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ACO Grid Ant Pathfinding Demo</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      font-family: Inter, Arial, Helvetica, sans-serif;
+    }
+
+    :root {
+      --bg: #eef3f8;
+      --card: rgba(255, 255, 255, 0.94);
+      --text: #172033;
+      --muted: #64748b;
+      --blue: #2563eb;
+      --green: #16a34a;
+      --amber: #f59e0b;
+      --danger: #dc2626;
+      --shadow: 0 20px 50px rgba(15, 23, 42, 0.14);
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background:
+        radial-gradient(circle at top left, rgba(37, 99, 235, 0.16), transparent 28%),
+        radial-gradient(circle at bottom right, rgba(34, 197, 94, 0.14), transparent 30%),
+        var(--bg);
+      color: var(--text);
+    }
+
+    header {
+      padding: 18px 28px 14px;
+      color: white;
+      background: linear-gradient(135deg, #0f172a 0%, #1d4ed8 58%, #0f766e 100%);
+      position: relative;
+      overflow: hidden;
+    }
+
+    header::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background-image:
+        linear-gradient(120deg, rgba(255,255,255,0.08) 0 1px, transparent 1px 80px),
+        linear-gradient(30deg, rgba(255,255,255,0.06) 0 1px, transparent 1px 90px);
+      opacity: 0.65;
+      pointer-events: none;
+    }
+
+    header h1,
+    header p {
+      position: relative;
+      z-index: 1;
+    }
+
+    header h1 {
+      margin: 0;
+      font-size: clamp(22px, 3vw, 32px);
+      letter-spacing: -0.5px;
+    }
+
+    header p {
+      margin: 7px 0 0;
+      color: #dbeafe;
+      font-size: clamp(13px, 1.5vw, 16px);
+    }
+
+    .main {
+      display: grid;
+      grid-template-columns: minmax(520px, 1fr) minmax(320px, 390px);
+      gap: 18px;
+      padding: 16px;
+      align-items: start;
+    }
+
+    .card {
+      background: var(--card);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.72);
+      border-radius: 22px;
+      box-shadow: var(--shadow);
+      padding: 14px;
+    }
+
+    canvas {
+      width: 100%;
+      height: auto;
+      max-height: calc(100vh - 250px);
+      display: block;
+      border-radius: 20px;
+      background: #fff;
+      border: 1px solid #dbe3ef;
+      cursor: crosshair;
+      object-fit: contain;
+    }
+
+    .mini-status {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+      margin-top: 12px;
+    }
+
+    .mini-card {
+      border-radius: 16px;
+      padding: 12px;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+    }
+
+    .mini-card span {
+      display: block;
+      font-size: 12px;
+      color: var(--muted);
+      font-weight: 800;
+    }
+
+    .mini-card strong {
+      display: block;
+      margin-top: 4px;
+      font-size: 20px;
+    }
+
+    .controls h2,
+    .info h2 {
+      margin: 0 0 10px;
+      font-size: 19px;
+      letter-spacing: -0.2px;
+    }
+
+    .control-group {
+      margin-bottom: 11px;
+    }
+
+    .control-group label {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      font-size: 14px;
+      font-weight: 800;
+      margin-bottom: 8px;
+    }
+
+    .control-group label span {
+      min-width: 50px;
+      text-align: right;
+      color: var(--blue);
+    }
+
+    input[type="range"] {
+      width: 100%;
+      accent-color: var(--blue);
+    }
+
+    .button-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-top: 10px;
+    }
+
+    button {
+      border: none;
+      border-radius: 14px;
+      padding: 12px;
+      font-size: 15px;
+      font-weight: 900;
+      color: white;
+      cursor: pointer;
+      box-shadow: 0 8px 18px rgba(15, 23, 42, 0.14);
+      transition: transform 0.15s ease, box-shadow 0.15s ease, opacity 0.15s ease;
+    }
+
+    button:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 12px 24px rgba(15, 23, 42, 0.18);
+    }
+
+    .primary { background: linear-gradient(135deg, #2563eb, #1d4ed8); }
+    .secondary { background: linear-gradient(135deg, #475569, #334155); }
+    .danger { background: linear-gradient(135deg, #ef4444, #b91c1c); }
+
+    .big-message {
+      margin-top: 12px;
+      background: linear-gradient(135deg, #fff7ed, #fffbeb);
+      border: 1px solid #fed7aa;
+      border-radius: 18px;
+      padding: 14px;
+      color: #92400e;
+      font-size: 15px;
+      font-weight: 900;
+      line-height: 1.5;
+    }
+
+    .stats {
+      display: grid;
+      gap: 9px;
+      margin-top: 12px;
+    }
+
+    .stat-card {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 16px;
+      padding: 10px;
+    }
+
+    .stat-title {
+      font-size: 13px;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      font-weight: 900;
+      margin-bottom: 9px;
+      color: #475569;
+    }
+
+    .stat-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin: 7px 0;
+      font-size: 14px;
+    }
+
+    .bar-bg {
+      width: 100%;
+      height: 12px;
+      background: #e2e8f0;
+      border-radius: 999px;
+      overflow: hidden;
+      margin: 6px 0 9px;
+    }
+
+    .bar-fill {
+      height: 100%;
+      width: 0%;
+      border-radius: 999px;
+      transition: width 0.25s ease;
+      background: linear-gradient(90deg, #fbbf24, #f59e0b);
+    }
+
+    .legend {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+      margin-top: 12px;
+      font-size: 13px;
+      color: #334155;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+      padding: 8px 10px;
+      font-weight: 700;
+    }
+
+    .dot {
+      width: 13px;
+      height: 13px;
+      border-radius: 50%;
+      display: inline-block;
+      flex: 0 0 auto;
+    }
+
+    .box {
+      width: 15px;
+      height: 15px;
+      border-radius: 4px;
+      display: inline-block;
+      flex: 0 0 auto;
+    }
+
+    .info {
+      margin: 0 22px 22px;
+      line-height: 1.72;
+    }
+
+    .steps {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+      margin-top: 14px;
+    }
+
+    .step {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 18px;
+      padding: 14px;
+    }
+
+    .step strong {
+      display: block;
+      margin-bottom: 6px;
+      color: #1d4ed8;
+    }
+
+    .formula {
+      margin-top: 14px;
+      padding: 13px 15px;
+      background: #111827;
+      color: white;
+      border-radius: 14px;
+      font-family: Consolas, monospace;
+      overflow-x: auto;
+    }
+
+    @media (max-width: 1100px) {
+      .main { grid-template-columns: 1fr; }
+      canvas { max-height: 62vh; }
+      .steps { grid-template-columns: 1fr 1fr; }
+    }
+
+    @media (min-width: 1101px) {
+      .controls {
+        max-height: calc(100vh - 120px);
+        overflow-y: auto;
+      }
+    }
+
+    @media (max-width: 700px) {
+      .main { padding: 10px; gap: 12px; }
+      header { padding: 16px; }
+      canvas { max-height: 56vh; }
+      .steps, .legend, .mini-status { grid-template-columns: 1fr 1fr; }
+      .button-row { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Ant Colony Optimization: Grid Pathfinding</h1>
+    <p>Ants move step by step on a grid, leave pheromones, and gradually discover a better path to food.</p>
+  </header>
+
+  <main class="main">
+    <section class="card">
+      <canvas id="acoCanvas" width="900" height="600"></canvas>
+
+      <div class="mini-status">
+        <div class="mini-card">
+          <span>Best path length</span>
+          <strong id="bestMiniText">-</strong>
+        </div>
+        <div class="mini-card">
+          <span>Ants on screen</span>
+          <strong id="activeAntText">0</strong>
+        </div>
+        <div class="mini-card">
+          <span>Completed trips</span>
+          <strong id="completedMiniText">0</strong>
+        </div>
+      </div>
+
+      <div class="legend">
+        <div class="legend-item"><span class="dot" style="background:#2563eb;"></span>Nest</div>
+        <div class="legend-item"><span class="dot" style="background:#16a34a;"></span>Food</div>
+        <div class="legend-item"><span class="box" style="background:#334155;"></span>Wall</div>
+        <div class="legend-item"><span class="box" style="background:#f59e0b;"></span>Pheromone</div>
+        <div class="legend-item"><span class="dot" style="background:#111827;"></span>Searching ant</div>
+        <div class="legend-item"><span class="dot" style="background:#22c55e;"></span>Returning ant</div>
+        <div class="legend-item"><span class="box" style="background:#fde047;"></span>Best path</div>
+        <div class="legend-item"><span class="box" style="background:#e2e8f0;"></span>Grid cell</div>
+      </div>
+    </section>
+
+    <aside class="card controls">
+      <h2>Controls</h2>
+
+      <div class="control-group">
+        <label>Ant spawn rate <span id="spawnRateText">8</span></label>
+        <input id="spawnRate" type="range" min="1" max="25" value="8" />
+      </div>
+
+      <div class="control-group">
+        <label>Max ants <span id="maxAntsText">80</span></label>
+        <input id="maxAnts" type="range" min="20" max="180" value="80" />
+      </div>
+
+      <div class="control-group">
+        <label>Alpha α: pheromone <span id="alphaText">2.5</span></label>
+        <input id="alpha" type="range" min="0" max="5" step="0.1" value="2.5" />
+      </div>
+
+      <div class="control-group">
+        <label>Beta β: food direction <span id="betaText">3.5</span></label>
+        <input id="beta" type="range" min="0" max="6" step="0.1" value="3.5" />
+      </div>
+
+      <div class="control-group">
+        <label>Evaporation <span id="evapText">0.003</span></label>
+        <input id="evap" type="range" min="0" max="0.03" step="0.001" value="0.003" />
+      </div>
+
+      <div class="control-group">
+        <label>Animation speed <span id="speedText">3</span></label>
+        <input id="speed" type="range" min="1" max="8" value="3" />
+      </div>
+
+      <div class="button-row">
+        <button id="runBtn" class="primary">Run</button>
+        <button id="stepBtn" class="secondary">Step</button>
+      </div>
+
+      <div class="button-row">
+        <button id="resetBtn" class="danger">Reset</button>
+        <button id="randomBtn" class="secondary">Random Map</button>
+      </div>
+
+      <div class="button-row">
+        <button id="mazeBtn" class="secondary">Preset Maze</button>
+        <button id="clearPheroBtn" class="secondary">Clear Pheromone</button>
+      </div>
+
+      <div class="big-message" id="messageBox">
+        Ants move one grid cell at a time. After a good path is found, later ants strongly prefer pheromone cells and the best known path.
+      </div>
+
+      <div class="stats">
+        <div class="stat-card">
+          <div class="stat-title">Simulation</div>
+          <div class="stat-row"><span>Completed trips</span><strong id="completedText">0</strong></div>
+          <div class="stat-row"><span>Best path length</span><strong id="bestText">-</strong></div>
+          <div class="stat-row"><span>Reset lost ants</span><strong id="resetLostText">0</strong></div>
+        </div>
+
+        <div class="stat-card">
+          <div class="stat-title">Pheromone Strength</div>
+          <div class="stat-row"><span>Current max pheromone</span><strong id="maxPheroText">0.00</strong></div>
+          <div class="bar-bg"><div id="maxPheroBar" class="bar-fill"></div></div>
+        </div>
+
+        <div class="stat-card">
+          <div class="stat-title">How to interact</div>
+          <div class="stat-row"><span>Click grid</span><strong>Add wall</strong></div>
+          <div class="stat-row"><span>Click wall</span><strong>Remove wall</strong></div>
+          <div class="stat-row"><span>Goal</span><strong>Find food</strong></div>
+        </div>
+      </div>
+    </aside>
+  </main>
+
+  <section class="card info">
+    <h2>Core idea of ACO on a grid</h2>
+    <p>
+      This version removes fixed routes. Each ant must move through the grid one cell at a time.
+      When ants find food, their successful path receives pheromone. Later ants combine pheromone strength and distance-to-goal information when choosing the next grid cell.
+      Over time, pheromone forms a visible path from the nest to the food.
+    </p>
+
+    <div class="steps">
+      <div class="step"><strong>1. Explore</strong>Ants search the grid by moving cell by cell.</div>
+      <div class="step"><strong>2. Find food</strong>Successful ants remember the path they took.</div>
+      <div class="step"><strong>3. Deposit</strong>The successful path receives pheromone.</div>
+      <div class="step"><strong>4. Follow</strong>Later ants are attracted to stronger pheromone cells.</div>
+    </div>
+
+    <div class="formula">
+      Weight(next cell) ∝ (pheromone ^ α) × ((1 / distance to target) ^ β)
+    </div>
+  </section>
+
+  <script>
+    const canvas = document.getElementById("acoCanvas");
+    const ctx = canvas.getContext("2d");
+
+    const cellSize = 20;
+    const cols = Math.floor(canvas.width / cellSize);
+    const rows = Math.floor(canvas.height / cellSize);
+
+    const nest = { x: 3, y: Math.floor(rows / 2) };
+    const food = { x: cols - 4, y: Math.floor(rows / 2) };
+
+    let walls = [];
+    let pheromone = [];
+    let ants = [];
+    let running = false;
+    let frame = 0;
+    let completed = 0;
+    let bestPath = [];
+    let bestPathLength = Infinity;
+    let resetLost = 0;
+
+    const controls = {
+      spawnRate: document.getElementById("spawnRate"),
+      maxAnts: document.getElementById("maxAnts"),
+      alpha: document.getElementById("alpha"),
+      beta: document.getElementById("beta"),
+      evap: document.getElementById("evap"),
+      speed: document.getElementById("speed")
+    };
+
+    const ui = {
+      spawnRateText: document.getElementById("spawnRateText"),
+      maxAntsText: document.getElementById("maxAntsText"),
+      alphaText: document.getElementById("alphaText"),
+      betaText: document.getElementById("betaText"),
+      evapText: document.getElementById("evapText"),
+      speedText: document.getElementById("speedText"),
+      messageBox: document.getElementById("messageBox"),
+      completedText: document.getElementById("completedText"),
+      completedMiniText: document.getElementById("completedMiniText"),
+      activeAntText: document.getElementById("activeAntText"),
+      bestText: document.getElementById("bestText"),
+      bestMiniText: document.getElementById("bestMiniText"),
+      resetLostText: document.getElementById("resetLostText"),
+      maxPheroText: document.getElementById("maxPheroText"),
+      maxPheroBar: document.getElementById("maxPheroBar")
+    };
+
+    function makeGrid(value) {
+      return Array.from({ length: rows }, () => Array(cols).fill(value));
+    }
+
+    function resetPheromone() {
+      pheromone = makeGrid(0);
+    }
+
+    function resetWalls() {
+      walls = makeGrid(false);
+    }
+
+    function isNest(x, y) {
+      return x === nest.x && y === nest.y;
+    }
+
+    function isFood(x, y) {
+      return x === food.x && y === food.y;
+    }
+
+    function inBounds(x, y) {
+      return x >= 0 && x < cols && y >= 0 && y < rows;
+    }
+
+    function blocked(x, y) {
+      if (!inBounds(x, y)) return true;
+      if (isNest(x, y) || isFood(x, y)) return false;
+      return walls[y][x];
+    }
+
+    function setWall(x, y, value = true) {
+      if (!inBounds(x, y)) return;
+      if (isNest(x, y) || isFood(x, y)) return;
+      walls[y][x] = value;
+    }
+
+    function rectWall(x1, y1, x2, y2) {
+      for (let y = y1; y <= y2; y++) {
+        for (let x = x1; x <= x2; x++) setWall(x, y, true);
+      }
+    }
+
+    function presetMaze() {
+      resetWalls();
+
+      rectWall(9, 4, 10, 22);
+      rectWall(18, 7, 19, 25);
+      rectWall(27, 4, 28, 22);
+      rectWall(35, 7, 36, 25);
+
+      // Open gates.
+      for (let y = 13; y <= 16; y++) setWall(9, y, false), setWall(10, y, false);
+      for (let y = 4; y <= 8; y++) setWall(18, y, false), setWall(19, y, false);
+      for (let y = 19; y <= 23; y++) setWall(27, y, false), setWall(28, y, false);
+      for (let y = 12; y <= 16; y++) setWall(35, y, false), setWall(36, y, false);
+
+      rectWall(5, 5, 15, 6);
+      rectWall(21, 23, 33, 24);
+      rectWall(31, 5, 40, 6);
+
+      fullReset(false);
+    }
+
+    function randomMap() {
+      resetWalls();
+      for (let i = 0; i < 10; i++) {
+        const horizontal = Math.random() > 0.5;
+        const len = 6 + Math.floor(Math.random() * 13);
+        const sx = 5 + Math.floor(Math.random() * (cols - 12));
+        const sy = 3 + Math.floor(Math.random() * (rows - 6));
+        for (let j = 0; j < len; j++) {
+          const x = horizontal ? sx + j : sx;
+          const y = horizontal ? sy : sy + j;
+          if (Math.hypot(x - nest.x, y - nest.y) > 4 && Math.hypot(x - food.x, y - food.y) > 4) {
+            setWall(x, y, true);
+          }
+        }
+      }
+      fullReset(false);
+    }
+
+    function createAnt() {
+      return {
+        x: nest.x,
+        y: nest.y,
+        target: "food",
+        path: [{ x: nest.x, y: nest.y }],
+        foodPath: [],
+        life: 0,
+        last: { dx: 0, dy: 0 },
+        px: nest.x * cellSize + cellSize / 2,
+        py: nest.y * cellSize + cellSize / 2,
+        tx: nest.x * cellSize + cellSize / 2,
+        ty: nest.y * cellSize + cellSize / 2,
+        colorShift: Math.random() * 0.2
+      };
+    }
+
+    function spawnAnt() {
+      if (ants.length >= Number(controls.maxAnts.value)) return;
+      ants.push(createAnt());
+    }
+
+    function spawnBatch(n) {
+      for (let i = 0; i < n; i++) spawnAnt();
+    }
+
+    function manhattan(a, b) {
+      return Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
+    }
+
+    function neighbors(x, y) {
+      const dirs = [
+        { dx: 1, dy: 0 },
+        { dx: -1, dy: 0 },
+        { dx: 0, dy: 1 },
+        { dx: 0, dy: -1 }
+      ];
+      return dirs
+        .map(d => ({ x: x + d.dx, y: y + d.dy, dx: d.dx, dy: d.dy }))
+        .filter(n => !blocked(n.x, n.y));
+    }
+
+    function recentContains(path, x, y, count = 12) {
+      const start = Math.max(0, path.length - count);
+      for (let i = start; i < path.length; i++) {
+        if (path[i].x === x && path[i].y === y) return true;
+      }
+      return false;
+    }
+
+    function isOnBestPath(x, y) {
+      if (!bestPath || bestPath.length === 0) return false;
+      return bestPath.some(p => p.x === x && p.y === y);
+    }
+
+    function chooseNext(ant) {
+      const ns = neighbors(ant.x, ant.y);
+      if (ns.length === 0) return { x: nest.x, y: nest.y, dx: 0, dy: 0 };
+
+      const target = ant.target === "food" ? food : nest;
+      const alpha = Number(controls.alpha.value);
+      const beta = Number(controls.beta.value);
+
+      const weights = ns.map(n => {
+        const tau = pheromone[n.y][n.x] + 0.08;
+        const eta = 1 / (manhattan(n, target) + 1);
+        const revisitPenalty = recentContains(ant.path, n.x, n.y, 10) ? 0.10 : 1;
+        const straightBonus = ant.last.dx === n.dx && ant.last.dy === n.dy ? 1.15 : 1;
+
+        // Teaching-mode convergence boost:
+        // once a best path exists, ants are strongly attracted to cells on that path.
+        const bestPathBonus = isOnBestPath(n.x, n.y) ? 7.5 : 1;
+
+        // Keep only a small amount of randomness so the convergence is visually clear.
+        const noise = 0.92 + Math.random() * 0.16;
+
+        return Math.pow(tau, alpha) * Math.pow(eta, beta) * revisitPenalty * straightBonus * bestPathBonus * noise;
+      });
+
+      const total = weights.reduce((a, b) => a + b, 0);
+      let r = Math.random() * total;
+      for (let i = 0; i < ns.length; i++) {
+        r -= weights[i];
+        if (r <= 0) return ns[i];
+      }
+      return ns[ns.length - 1];
+    }
+
+    function deposit(path) {
+      if (!path || path.length === 0) return;
+
+      // Stronger deposit makes the successful route appear quickly during presentation.
+      const amount = Math.max(0.35, 42 / path.length);
+
+      path.forEach(p => {
+        pheromone[p.y][p.x] = Math.min(35, pheromone[p.y][p.x] + amount);
+      });
+    }
+
+    function evaporate() {
+      const rate = Number(controls.evap.value);
+      for (let y = 0; y < rows; y++) {
+        for (let x = 0; x < cols; x++) {
+          pheromone[y][x] *= (1 - rate);
+          if (pheromone[y][x] < 0.01) pheromone[y][x] = 0;
+        }
+      }
+    }
+
+    function moveOneCell(ant) {
+      ant.life++;
+      const next = chooseNext(ant);
+      ant.x = next.x;
+      ant.y = next.y;
+      ant.last = { dx: next.dx, dy: next.dy };
+      ant.tx = ant.x * cellSize + cellSize / 2;
+      ant.ty = ant.y * cellSize + cellSize / 2;
+      ant.path.push({ x: ant.x, y: ant.y });
+
+      if (ant.target === "food" && isFood(ant.x, ant.y)) {
+        ant.target = "nest";
+        ant.foodPath = ant.path.slice();
+
+        // Deposit immediately after food is found, so the route becomes visible faster.
+        deposit(ant.foodPath);
+
+        if (ant.foodPath.length < bestPathLength) {
+          bestPathLength = ant.foodPath.length;
+          bestPath = ant.foodPath.slice();
+          ui.messageBox.textContent = "A new best path was found. Later ants will strongly prefer this yellow path.";
+        }
+      }
+
+      if (ant.target === "nest" && isNest(ant.x, ant.y)) {
+        completed++;
+        const successfulPath = ant.foodPath.slice();
+
+        // Returning successfully reinforces the route again.
+        deposit(successfulPath);
+
+        if (successfulPath.length <= bestPathLength) {
+          bestPathLength = successfulPath.length;
+          bestPath = successfulPath.slice();
+          ui.messageBox.textContent = "The best path is being reinforced. Most ants should now converge to the yellow route.";
+        } else {
+          ui.messageBox.textContent = "A successful ant returned to the nest and reinforced its path with pheromone.";
+        }
+        Object.assign(ant, createAnt());
+        return;
+      }
+
+      if (ant.life > 1200) {
+        resetLost++;
+        Object.assign(ant, createAnt());
+      }
+    }
+
+    function updateAntPixels() {
+      ants.forEach(ant => {
+        ant.px += (ant.tx - ant.px) * 0.45;
+        ant.py += (ant.ty - ant.py) * 0.45;
+      });
+    }
+
+    function simulationStep() {
+      const speed = Number(controls.speed.value);
+      for (let i = 0; i < speed; i++) {
+        ants.forEach(moveOneCell);
+        evaporate();
+      }
+      updateAntPixels();
+    }
+
+    function clearPheromone() {
+      resetPheromone();
+      bestPath = [];
+      bestPathLength = Infinity;
+      updateUI();
+      draw();
+    }
+
+    function fullReset(resetMap = true) {
+      if (resetMap) presetMaze();
+      resetPheromone();
+      ants = [];
+      completed = 0;
+      bestPath = [];
+      bestPathLength = Infinity;
+      resetLost = 0;
+      frame = 0;
+      ui.messageBox.textContent = "Ants move one grid cell at a time. After a good path is found, later ants strongly prefer pheromone cells and the best known path.";
+      updateUI();
+      draw();
+    }
+
+    function maxPheromone() {
+      let max = 0;
+      for (let y = 0; y < rows; y++) {
+        for (let x = 0; x < cols; x++) max = Math.max(max, pheromone[y][x]);
+      }
+      return max;
+    }
+
+    function updateUI() {
+      ui.spawnRateText.textContent = controls.spawnRate.value;
+      ui.maxAntsText.textContent = controls.maxAnts.value;
+      ui.alphaText.textContent = Number(controls.alpha.value).toFixed(1);
+      ui.betaText.textContent = Number(controls.beta.value).toFixed(1);
+      ui.evapText.textContent = Number(controls.evap.value).toFixed(3);
+      ui.speedText.textContent = controls.speed.value;
+      ui.completedText.textContent = completed;
+      ui.completedMiniText.textContent = completed;
+      ui.activeAntText.textContent = ants.length;
+      ui.bestText.textContent = bestPathLength === Infinity ? "-" : bestPathLength;
+      ui.bestMiniText.textContent = bestPathLength === Infinity ? "-" : bestPathLength;
+      ui.resetLostText.textContent = resetLost;
+      const max = maxPheromone();
+      ui.maxPheroText.textContent = max.toFixed(2);
+      ui.maxPheroBar.style.width = Math.min(100, max / 35 * 100) + "%";
+    }
+
+    function draw() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      drawBackground();
+      drawPheromone();
+      drawBestPath();
+      drawWalls();
+      drawGrid();
+      drawNestFood();
+      drawAnts();
+    }
+
+    function drawBackground() {
+      const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+      gradient.addColorStop(0, "#fbfdff");
+      gradient.addColorStop(1, "#edf7ed");
+      ctx.fillStyle = gradient;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+    }
+
+    function drawGrid() {
+      ctx.strokeStyle = "rgba(148, 163, 184, 0.45)";
+      ctx.lineWidth = 1;
+      for (let x = 0; x <= cols; x++) {
+        ctx.beginPath();
+        ctx.moveTo(x * cellSize, 0);
+        ctx.lineTo(x * cellSize, rows * cellSize);
+        ctx.stroke();
+      }
+      for (let y = 0; y <= rows; y++) {
+        ctx.beginPath();
+        ctx.moveTo(0, y * cellSize);
+        ctx.lineTo(cols * cellSize, y * cellSize);
+        ctx.stroke();
+      }
+    }
+
+    function drawPheromone() {
+      const max = Math.max(maxPheromone(), 1);
+      for (let y = 0; y < rows; y++) {
+        for (let x = 0; x < cols; x++) {
+          const p = pheromone[y][x];
+          if (p > 0) {
+            const a = Math.min(0.82, 0.12 + p / max * 0.7);
+            ctx.fillStyle = `rgba(245, 158, 11, ${a})`;
+            roundedCell(x, y, 5, true);
+          }
+        }
+      }
+    }
+
+    function drawBestPath() {
+      if (!bestPath.length) return;
+      ctx.fillStyle = "rgba(253, 224, 71, 0.86)";
+      bestPath.forEach(p => roundedCell(p.x, p.y, 6, true));
+    }
+
+    function drawWalls() {
+      ctx.fillStyle = "#334155";
+      for (let y = 0; y < rows; y++) {
+        for (let x = 0; x < cols; x++) {
+          if (walls[y][x]) roundedCell(x, y, 4, true);
+        }
+      }
+    }
+
+    function roundedCell(x, y, radius, fillOnly = false) {
+      const pad = 2;
+      const px = x * cellSize + pad;
+      const py = y * cellSize + pad;
+      const w = cellSize - pad * 2;
+      const h = cellSize - pad * 2;
+      ctx.beginPath();
+      ctx.moveTo(px + radius, py);
+      ctx.lineTo(px + w - radius, py);
+      ctx.quadraticCurveTo(px + w, py, px + w, py + radius);
+      ctx.lineTo(px + w, py + h - radius);
+      ctx.quadraticCurveTo(px + w, py + h, px + w - radius, py + h);
+      ctx.lineTo(px + radius, py + h);
+      ctx.quadraticCurveTo(px, py + h, px, py + h - radius);
+      ctx.lineTo(px, py + radius);
+      ctx.quadraticCurveTo(px, py, px + radius, py);
+      ctx.closePath();
+      if (fillOnly) ctx.fill();
+      else ctx.stroke();
+    }
+
+    function drawNestFood() {
+      drawSpecialCell(nest.x, nest.y, "#2563eb", "N", "Nest");
+      drawSpecialCell(food.x, food.y, "#16a34a", "F", "Food");
+    }
+
+    function drawSpecialCell(x, y, color, letter, label) {
+      const cx = x * cellSize + cellSize / 2;
+      const cy = y * cellSize + cellSize / 2;
+      ctx.save();
+      ctx.shadowColor = color;
+      ctx.shadowBlur = 15;
+      ctx.fillStyle = color;
+      ctx.beginPath();
+      ctx.arc(cx, cy, cellSize * 0.62, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.shadowBlur = 0;
+      ctx.strokeStyle = "white";
+      ctx.lineWidth = 3;
+      ctx.stroke();
+      ctx.fillStyle = "white";
+      ctx.font = "bold 14px Arial";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(letter, cx, cy);
+      ctx.fillStyle = "#0f172a";
+      ctx.font = "bold 13px Arial";
+      ctx.fillText(label, cx, cy + 26);
+      ctx.restore();
+    }
+
+    function drawAnts() {
+      ants.forEach(ant => {
+        const isReturning = ant.target === "nest";
+        ctx.save();
+        ctx.translate(ant.px, ant.py);
+        ctx.fillStyle = isReturning ? "#22c55e" : "#111827";
+        ctx.strokeStyle = ctx.fillStyle;
+        ctx.lineWidth = 1.8;
+        ctx.beginPath();
+        ctx.ellipse(0, 0, 5.5, 3.8, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(5, 0, 2.8, 0, Math.PI * 2);
+        ctx.fill();
+        for (let i = -1; i <= 1; i++) {
+          ctx.beginPath();
+          ctx.moveTo(-1, i * 2);
+          ctx.lineTo(-7, i * 4);
+          ctx.stroke();
+          ctx.beginPath();
+          ctx.moveTo(2, i * 2);
+          ctx.lineTo(8, i * 4);
+          ctx.stroke();
+        }
+        ctx.restore();
+      });
+    }
+
+    function tick() {
+      frame++;
+      if (running) {
+        const interval = Math.max(2, Math.floor(26 / Number(controls.spawnRate.value)));
+        if (frame % interval === 0) spawnAnt();
+        simulationStep();
+      } else {
+        updateAntPixels();
+      }
+      if (frame % 10 === 0) updateUI();
+      draw();
+      requestAnimationFrame(tick);
+    }
+
+    document.getElementById("runBtn").addEventListener("click", () => {
+      running = !running;
+      document.getElementById("runBtn").textContent = running ? "Pause" : "Run";
+    });
+
+    document.getElementById("stepBtn").addEventListener("click", () => {
+      spawnBatch(Number(controls.spawnRate.value));
+      simulationStep();
+      updateUI();
+    });
+
+    document.getElementById("resetBtn").addEventListener("click", () => {
+      running = false;
+      document.getElementById("runBtn").textContent = "Run";
+      fullReset(false);
+    });
+
+    document.getElementById("randomBtn").addEventListener("click", () => {
+      running = false;
+      document.getElementById("runBtn").textContent = "Run";
+      randomMap();
+    });
+
+    document.getElementById("mazeBtn").addEventListener("click", () => {
+      running = false;
+      document.getElementById("runBtn").textContent = "Run";
+      presetMaze();
+    });
+
+    document.getElementById("clearPheroBtn").addEventListener("click", clearPheromone);
+
+    Object.values(controls).forEach(control => {
+      control.addEventListener("input", () => {
+        updateUI();
+        draw();
+      });
+    });
+
+    canvas.addEventListener("click", e => {
+      const rect = canvas.getBoundingClientRect();
+      const x = Math.floor(((e.clientX - rect.left) / rect.width) * cols);
+      const y = Math.floor(((e.clientY - rect.top) / rect.height) * rows);
+      if (inBounds(x, y) && !isNest(x, y) && !isFood(x, y)) {
+        walls[y][x] = !walls[y][x];
+        ants = [];
+        resetPheromone();
+        bestPath = [];
+        bestPathLength = Infinity;
+        updateUI();
+        draw();
+      }
+    });
+
+    resetPheromone();
+    resetWalls();
+    presetMaze();
+    updateUI();
+    draw();
+    tick();
+  </script>
+</body>
+</html>
