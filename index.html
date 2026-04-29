@@ -349,7 +349,7 @@
 
       <div class="mini-status">
         <div class="mini-card">
-          <span>Best path length</span>
+          <span>Best ACO path length</span>
           <strong id="bestMiniText">-</strong>
         </div>
         <div class="mini-card">
@@ -369,7 +369,7 @@
         <div class="legend-item"><span class="box" style="background:#f59e0b;"></span>Pheromone</div>
         <div class="legend-item"><span class="dot" style="background:#111827;"></span>Searching ant</div>
         <div class="legend-item"><span class="dot" style="background:#22c55e;"></span>Returning ant</div>
-        <div class="legend-item"><span class="box" style="background:#fde047;"></span>Best path</div>
+        <div class="legend-item"><span class="box" style="background:#fde047;"></span>Best ACO path</div>
         <div class="legend-item"><span class="box" style="background:#e2e8f0;"></span>Grid cell</div>
       </div>
     </section>
@@ -388,18 +388,18 @@
       </div>
 
       <div class="control-group">
-        <label>Alpha α: pheromone <span id="alphaText">2.5</span></label>
-        <input id="alpha" type="range" min="0" max="5" step="0.1" value="2.5" />
+        <label>Alpha α: pheromone <span id="alphaText">2.2</span></label>
+        <input id="alpha" type="range" min="0" max="5" step="0.1" value="2.2" />
       </div>
 
       <div class="control-group">
-        <label>Beta β: food direction <span id="betaText">3.5</span></label>
-        <input id="beta" type="range" min="0" max="6" step="0.1" value="3.5" />
+        <label>Beta β: food direction <span id="betaText">3.2</span></label>
+        <input id="beta" type="range" min="0" max="6" step="0.1" value="3.2" />
       </div>
 
       <div class="control-group">
-        <label>Evaporation <span id="evapText">0.003</span></label>
-        <input id="evap" type="range" min="0" max="0.03" step="0.001" value="0.003" />
+        <label>Evaporation <span id="evapText">0.004</span></label>
+        <input id="evap" type="range" min="0" max="0.03" step="0.001" value="0.004" />
       </div>
 
       <div class="control-group">
@@ -423,14 +423,14 @@
       </div>
 
       <div class="big-message" id="messageBox">
-        Ants move one grid cell at a time. After a good path is found, later ants strongly prefer pheromone cells and the best known path.
+        Yellow cells show the best path discovered by ants so far. Ants use pheromone feedback to gradually improve the route.
       </div>
 
       <div class="stats">
         <div class="stat-card">
           <div class="stat-title">Simulation</div>
           <div class="stat-row"><span>Completed trips</span><strong id="completedText">0</strong></div>
-          <div class="stat-row"><span>Best path length</span><strong id="bestText">-</strong></div>
+          <div class="stat-row"><span>Best ACO path length</span><strong id="bestText">-</strong></div>
           <div class="stat-row"><span>Reset lost ants</span><strong id="resetLostText">0</strong></div>
         </div>
 
@@ -455,14 +455,14 @@
     <p>
       This version removes fixed routes. Each ant must move through the grid one cell at a time.
       When ants find food, their successful path receives pheromone. Later ants combine pheromone strength and distance-to-goal information when choosing the next grid cell.
-      Over time, pheromone forms a visible path from the nest to the food.
+      The yellow cells are not calculated by BFS; they are the best simplified path discovered by ants so far.
     </p>
 
     <div class="steps">
       <div class="step"><strong>1. Explore</strong>Ants search the grid by moving cell by cell.</div>
       <div class="step"><strong>2. Find food</strong>Successful ants remember the path they took.</div>
       <div class="step"><strong>3. Deposit</strong>The successful path receives pheromone.</div>
-      <div class="step"><strong>4. Follow</strong>Later ants are attracted to stronger pheromone cells.</div>
+      <div class="step"><strong>4. Improve</strong>If a later ant discovers a shorter path, the best path updates.</div>
     </div>
 
     <div class="formula">
@@ -568,7 +568,6 @@
       rectWall(27, 4, 28, 22);
       rectWall(35, 7, 36, 25);
 
-      // Open gates.
       for (let y = 13; y <= 16; y++) setWall(9, y, false), setWall(10, y, false);
       for (let y = 4; y <= 8; y++) setWall(18, y, false), setWall(19, y, false);
       for (let y = 19; y <= 23; y++) setWall(27, y, false), setWall(28, y, false);
@@ -611,8 +610,7 @@
         px: nest.x * cellSize + cellSize / 2,
         py: nest.y * cellSize + cellSize / 2,
         tx: nest.x * cellSize + cellSize / 2,
-        ty: nest.y * cellSize + cellSize / 2,
-        colorShift: Math.random() * 0.2
+        ty: nest.y * cellSize + cellSize / 2
       };
     }
 
@@ -649,6 +647,29 @@
       return false;
     }
 
+    function simplifyPath(path) {
+      const result = [];
+      const seen = new Map();
+
+      for (const cell of path) {
+        const key = `${cell.x},${cell.y}`;
+
+        if (seen.has(key)) {
+          const index = seen.get(key);
+
+          while (result.length > index + 1) {
+            const removed = result.pop();
+            seen.delete(`${removed.x},${removed.y}`);
+          }
+        } else {
+          seen.set(key, result.length);
+          result.push({ x: cell.x, y: cell.y });
+        }
+      }
+
+      return result;
+    }
+
     function isOnBestPath(x, y) {
       if (!bestPath || bestPath.length === 0) return false;
       return bestPath.some(p => p.x === x && p.y === y);
@@ -666,14 +687,9 @@
         const tau = pheromone[n.y][n.x] + 0.08;
         const eta = 1 / (manhattan(n, target) + 1);
         const revisitPenalty = recentContains(ant.path, n.x, n.y, 10) ? 0.10 : 1;
-        const straightBonus = ant.last.dx === n.dx && ant.last.dy === n.dy ? 1.15 : 1;
-
-        // Teaching-mode convergence boost:
-        // once a best path exists, ants are strongly attracted to cells on that path.
-        const bestPathBonus = isOnBestPath(n.x, n.y) ? 7.5 : 1;
-
-        // Keep only a small amount of randomness so the convergence is visually clear.
-        const noise = 0.92 + Math.random() * 0.16;
+        const straightBonus = ant.last.dx === n.dx && ant.last.dy === n.dy ? 1.12 : 1;
+        const bestPathBonus = isOnBestPath(n.x, n.y) ? 2.0 : 1;
+        const noise = 0.88 + Math.random() * 0.24;
 
         return Math.pow(tau, alpha) * Math.pow(eta, beta) * revisitPenalty * straightBonus * bestPathBonus * noise;
       });
@@ -689,10 +705,7 @@
 
     function deposit(path) {
       if (!path || path.length === 0) return;
-
-      // Stronger deposit makes the successful route appear quickly during presentation.
       const amount = Math.max(0.35, 42 / path.length);
-
       path.forEach(p => {
         pheromone[p.y][p.x] = Math.min(35, pheromone[p.y][p.x] + amount);
       });
@@ -720,29 +733,28 @@
 
       if (ant.target === "food" && isFood(ant.x, ant.y)) {
         ant.target = "nest";
-        ant.foodPath = ant.path.slice();
+        ant.foodPath = simplifyPath(ant.path);
 
-        // Deposit immediately after food is found, so the route becomes visible faster.
         deposit(ant.foodPath);
 
-        if (ant.foodPath.length < bestPathLength) {
-          bestPathLength = ant.foodPath.length;
+        const antPathSteps = ant.foodPath.length - 1;
+        if (antPathSteps < bestPathLength) {
+          bestPathLength = antPathSteps;
           bestPath = ant.foodPath.slice();
-          ui.messageBox.textContent = "A new best path was found. Later ants will strongly prefer this yellow path.";
+          ui.messageBox.textContent = "A new shorter path was discovered by ants. The yellow cells show the best ACO path so far.";
         }
       }
 
       if (ant.target === "nest" && isNest(ant.x, ant.y)) {
         completed++;
-        const successfulPath = ant.foodPath.slice();
-
-        // Returning successfully reinforces the route again.
+        const successfulPath = simplifyPath(ant.foodPath.slice());
         deposit(successfulPath);
 
-        if (successfulPath.length <= bestPathLength) {
-          bestPathLength = successfulPath.length;
+        const successfulSteps = successfulPath.length - 1;
+        if (successfulSteps < bestPathLength) {
+          bestPathLength = successfulSteps;
           bestPath = successfulPath.slice();
-          ui.messageBox.textContent = "The best path is being reinforced. Most ants should now converge to the yellow route.";
+          ui.messageBox.textContent = "A new shorter path was discovered by ants. Pheromone will make later ants more likely to follow it.";
         } else {
           ui.messageBox.textContent = "A successful ant returned to the nest and reinforced its path with pheromone.";
         }
@@ -789,7 +801,7 @@
       bestPathLength = Infinity;
       resetLost = 0;
       frame = 0;
-      ui.messageBox.textContent = "Ants move one grid cell at a time. After a good path is found, later ants strongly prefer pheromone cells and the best known path.";
+      ui.messageBox.textContent = "Yellow cells show the best path discovered by ants so far. Ants use pheromone feedback to gradually improve the route.";
       updateUI();
       draw();
     }
@@ -1018,8 +1030,11 @@
 
     canvas.addEventListener("click", e => {
       const rect = canvas.getBoundingClientRect();
-      const x = Math.floor(((e.clientX - rect.left) / rect.width) * cols);
-      const y = Math.floor(((e.clientY - rect.top) / rect.height) * rows);
+      const scaleX = canvas.width / rect.width;
+      const scaleY = canvas.height / rect.height;
+      const x = Math.floor((e.clientX - rect.left) * scaleX / cellSize);
+      const y = Math.floor((e.clientY - rect.top) * scaleY / cellSize);
+
       if (inBounds(x, y) && !isNest(x, y) && !isFood(x, y)) {
         walls[y][x] = !walls[y][x];
         ants = [];
