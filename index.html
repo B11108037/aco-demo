@@ -88,14 +88,13 @@
 
     canvas {
       width: 100%;
+      aspect-ratio: 3 / 2;
       height: auto;
-      max-height: calc(100vh - 250px);
       display: block;
       border-radius: 20px;
       background: #fff;
       border: 1px solid #dbe3ef;
       cursor: crosshair;
-      object-fit: contain;
     }
 
     .mini-status {
@@ -317,7 +316,6 @@
 
     @media (max-width: 1100px) {
       .main { grid-template-columns: 1fr; }
-      canvas { max-height: 62vh; }
       .steps { grid-template-columns: 1fr 1fr; }
     }
 
@@ -331,7 +329,6 @@
     @media (max-width: 700px) {
       .main { padding: 10px; gap: 12px; }
       header { padding: 16px; }
-      canvas { max-height: 56vh; }
       .steps, .legend, .mini-status { grid-template-columns: 1fr 1fr; }
       .button-row { grid-template-columns: 1fr; }
     }
@@ -1030,10 +1027,13 @@
 
     canvas.addEventListener("click", e => {
       const rect = canvas.getBoundingClientRect();
-      const scaleX = canvas.width / rect.width;
-      const scaleY = canvas.height / rect.height;
-      const x = Math.floor((e.clientX - rect.left) * scaleX / cellSize);
-      const y = Math.floor((e.clientY - rect.top) * scaleY / cellSize);
+
+      // Convert screen click position back to the canvas coordinate system.
+      // This prevents wall placement from shifting when the canvas is resized by CSS.
+      const canvasX = (e.clientX - rect.left) * (canvas.width / rect.width);
+      const canvasY = (e.clientY - rect.top) * (canvas.height / rect.height);
+      const x = Math.floor(canvasX / cellSize);
+      const y = Math.floor(canvasY / cellSize);
 
       if (inBounds(x, y) && !isNest(x, y) && !isFood(x, y)) {
         walls[y][x] = !walls[y][x];
