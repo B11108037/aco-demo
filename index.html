@@ -560,38 +560,251 @@
     function presetMaze() {
       resetWalls();
 
-      rectWall(9, 4, 10, 22);
-      rectWall(18, 7, 19, 25);
-      rectWall(27, 4, 28, 22);
-      rectWall(35, 7, 36, 25);
+      // More complex maze preset.
+      // Outer blank area is filled with walls, and the inner area contains more turns, branches, and dead-end-like corridors.
+      const left = 5;
+      const right = 42;
+      const top = 2;
+      const bottom = rows - 3;
 
-      for (let y = 13; y <= 16; y++) setWall(9, y, false), setWall(10, y, false);
-      for (let y = 4; y <= 8; y++) setWall(18, y, false), setWall(19, y, false);
-      for (let y = 19; y <= 23; y++) setWall(27, y, false), setWall(28, y, false);
-      for (let y = 12; y <= 16; y++) setWall(35, y, false), setWall(36, y, false);
+      // Fill the outer blank area with walls so ants cannot escape the maze.
+      for (let y = 0; y < rows; y++) {
+        for (let x = 0; x < cols; x++) {
+          if (x < left || x > right || y < top || y > bottom) {
+            setWall(x, y, true);
+          }
+        }
+      }
 
-      rectWall(5, 5, 15, 6);
-      rectWall(21, 23, 33, 24);
-      rectWall(31, 5, 40, 6);
+      // Outer maze boundary.
+      rectWall(left, top, right, top);
+      rectWall(left, bottom, right, bottom);
+      rectWall(left, top, left, bottom);
+      rectWall(right, top, right, bottom);
+
+      // Nest and Food entrance openings.
+      for (let y = nest.y - 2; y <= nest.y + 2; y++) {
+        setWall(left, y, false);
+        setWall(left + 1, y, false);
+      }
+      for (let y = food.y - 2; y <= food.y + 2; y++) {
+        setWall(right, y, false);
+        setWall(right - 1, y, false);
+      }
+
+      // Keep Nest and Food neighborhoods open.
+      for (let y = nest.y - 2; y <= nest.y + 2; y++) {
+        for (let x = nest.x - 1; x <= left + 3; x++) setWall(x, y, false);
+      }
+      for (let y = food.y - 2; y <= food.y + 2; y++) {
+        for (let x = right - 3; x <= food.x + 1; x++) setWall(x, y, false);
+      }
+
+      // Main vertical walls.
+      rectWall(8, 4, 8, 25);
+      rectWall(12, 3, 12, 18);
+      rectWall(16, 8, 16, 27);
+      rectWall(20, 3, 20, 21);
+      rectWall(24, 7, 24, 27);
+      rectWall(28, 3, 28, 20);
+      rectWall(32, 8, 32, 27);
+      rectWall(36, 3, 36, 22);
+      rectWall(40, 5, 40, 25);
+
+      // Gates in vertical walls, alternating high/low/middle.
+      for (let y = 13; y <= 16; y++) setWall(8, y, false);
+      for (let y = 5; y <= 7; y++) setWall(12, y, false);
+      for (let y = 21; y <= 24; y++) setWall(16, y, false);
+      for (let y = 10; y <= 13; y++) setWall(20, y, false);
+      for (let y = 17; y <= 20; y++) setWall(24, y, false);
+      for (let y = 6; y <= 9; y++) setWall(28, y, false);
+      for (let y = 20; y <= 23; y++) setWall(32, y, false);
+      for (let y = 12; y <= 15; y++) setWall(36, y, false);
+      for (let y = 8; y <= 11; y++) setWall(40, y, false);
+
+      // Horizontal maze walls to create corridors.
+      rectWall(7, 6, 13, 6);
+      rectWall(14, 10, 20, 10);
+      rectWall(7, 18, 16, 18);
+      rectWall(11, 23, 20, 23);
+      rectWall(19, 5, 28, 5);
+      rectWall(22, 15, 32, 15);
+      rectWall(24, 25, 35, 25);
+      rectWall(31, 9, 41, 9);
+      rectWall(34, 18, 41, 18);
+      rectWall(29, 22, 38, 22);
+
+      // More inner branches / dead-end-like blocks.
+      rectWall(10, 9, 10, 13);
+      rectWall(10, 13, 14, 13);
+      rectWall(14, 15, 14, 17);
+
+      rectWall(18, 14, 22, 14);
+      rectWall(22, 14, 22, 17);
+      rectWall(18, 19, 23, 19);
+
+      rectWall(26, 11, 30, 11);
+      rectWall(30, 11, 30, 14);
+      rectWall(26, 18, 30, 18);
+
+      rectWall(34, 12, 38, 12);
+      rectWall(38, 12, 38, 16);
+      rectWall(34, 20, 36, 20);
+
+      // Small isolated wall blocks for visual complexity.
+      rectWall(13, 4, 15, 4);
+      rectWall(13, 25, 15, 25);
+      rectWall(17, 6, 18, 6);
+      rectWall(18, 26, 19, 26);
+      rectWall(23, 4, 24, 4);
+      rectWall(25, 22, 26, 22);
+      rectWall(29, 13, 30, 13);
+      rectWall(33, 5, 35, 5);
+      rectWall(37, 24, 39, 24);
+
+      // Critical corridor cleanup: keep a winding but valid route open through the maze.
+      // This route is not directly shown to the ants; it just prevents the preset maze from being impossible.
+      const guaranteedPath = [
+        [5,15],[6,15],[7,15],[8,15],[9,15],[10,15],
+        [11,15],[12,15],[13,15],[14,15],[15,15],
+        [15,16],[15,17],[15,18],[15,19],[15,20],[15,21],[15,22],
+        [16,22],[17,22],[18,22],[19,22],[20,22],[21,22],[22,22],
+        [22,21],[22,20],[22,19],[22,18],[22,17],
+        [23,17],[24,17],[25,17],[26,17],[27,17],[28,17],
+        [28,16],[28,15],[28,14],[28,13],[28,12],[28,11],[28,10],[28,9],[28,8],
+        [29,8],[30,8],[31,8],[32,8],[33,8],[34,8],[35,8],[36,8],[37,8],[38,8],[39,8],
+        [39,9],[39,10],[39,11],[39,12],[39,13],[39,14],[39,15],
+        [40,15],[41,15],[42,15]
+      ];
+      guaranteedPath.forEach(([x, y]) => setWall(x, y, false));
+
+      // Keep Nest and Food themselves clear.
+      setWall(nest.x, nest.y, false);
+      setWall(food.x, food.y, false);
 
       fullReset(false);
     }
 
     function randomMap() {
       resetWalls();
-      for (let i = 0; i < 10; i++) {
-        const horizontal = Math.random() > 0.5;
-        const len = 6 + Math.floor(Math.random() * 13);
-        const sx = 5 + Math.floor(Math.random() * (cols - 12));
-        const sy = 3 + Math.floor(Math.random() * (rows - 6));
-        for (let j = 0; j < len; j++) {
-          const x = horizontal ? sx + j : sx;
-          const y = horizontal ? sy : sy + j;
-          if (Math.hypot(x - nest.x, y - nest.y) > 4 && Math.hypot(x - food.x, y - food.y) > 4) {
+
+      // Random maze map: every generated map has an outer wall and maze-like inner walls.
+      const left = 5;
+      const right = 42;
+      const top = 2;
+      const bottom = rows - 3;
+
+      // Fill outside area with walls so ants cannot leave the maze area.
+      for (let y = 0; y < rows; y++) {
+        for (let x = 0; x < cols; x++) {
+          if (x < left || x > right || y < top || y > bottom) {
             setWall(x, y, true);
           }
         }
       }
+
+      // Outer boundary walls.
+      rectWall(left, top, right, top);
+      rectWall(left, bottom, right, bottom);
+      rectWall(left, top, left, bottom);
+      rectWall(right, top, right, bottom);
+
+      // Entrance around Nest.
+      for (let y = nest.y - 2; y <= nest.y + 2; y++) {
+        setWall(left, y, false);
+        setWall(left + 1, y, false);
+      }
+
+      // Entrance around Food.
+      for (let y = food.y - 2; y <= food.y + 2; y++) {
+        setWall(right, y, false);
+        setWall(right - 1, y, false);
+      }
+
+      // Keep Nest and Food neighborhoods open.
+      for (let y = nest.y - 2; y <= nest.y + 2; y++) {
+        for (let x = nest.x - 1; x <= left + 3; x++) setWall(x, y, false);
+      }
+      for (let y = food.y - 2; y <= food.y + 2; y++) {
+        for (let x = right - 3; x <= food.x + 1; x++) setWall(x, y, false);
+      }
+
+      // Create a guaranteed winding corridor first, so the random maze is never impossible.
+      const guaranteedPath = [
+        [5,15],[6,15],[7,15],[8,15],[9,15],[10,15],[11,15],[12,15],
+        [12,16],[12,17],[12,18],[12,19],[12,20],[12,21],[12,22],
+        [13,22],[14,22],[15,22],[16,22],[17,22],[18,22],[19,22],
+        [19,21],[19,20],[19,19],[19,18],[19,17],
+        [20,17],[21,17],[22,17],[23,17],[24,17],[25,17],[26,17],
+        [26,16],[26,15],[26,14],[26,13],[26,12],[26,11],[26,10],
+        [27,10],[28,10],[29,10],[30,10],[31,10],[32,10],[33,10],[34,10],
+        [34,11],[34,12],[34,13],[34,14],[34,15],[34,16],
+        [35,16],[36,16],[37,16],[38,16],[39,16],[40,16],[41,16],[42,16]
+      ];
+
+      const pathSet = new Set(guaranteedPath.map(([x, y]) => `${x},${y}`));
+
+      function safeSetWall(x, y, value = true) {
+        if (pathSet.has(`${x},${y}`)) return;
+        if (Math.hypot(x - nest.x, y - nest.y) <= 3) return;
+        if (Math.hypot(x - food.x, y - food.y) <= 3) return;
+        setWall(x, y, value);
+      }
+
+      // Random vertical maze walls with random gates.
+      const verticalColumns = [8, 12, 16, 20, 24, 28, 32, 36, 40];
+      verticalColumns.forEach(x => {
+        const y1 = top + 2 + Math.floor(Math.random() * 4);
+        const y2 = bottom - 2 - Math.floor(Math.random() * 4);
+        for (let y = y1; y <= y2; y++) safeSetWall(x, y, true);
+
+        // Open 1 to 2 gates on each wall.
+        const gate1 = top + 3 + Math.floor(Math.random() * (bottom - top - 8));
+        for (let y = gate1; y <= gate1 + 2; y++) setWall(x, y, false);
+
+        if (Math.random() > 0.45) {
+          const gate2 = top + 3 + Math.floor(Math.random() * (bottom - top - 8));
+          for (let y = gate2; y <= gate2 + 2; y++) setWall(x, y, false);
+        }
+      });
+
+      // Random horizontal maze walls with random gates.
+      const horizontalRows = [5, 8, 11, 14, 18, 21, 24, 27];
+      horizontalRows.forEach(y => {
+        const x1 = left + 2 + Math.floor(Math.random() * 5);
+        const x2 = right - 2 - Math.floor(Math.random() * 5);
+        for (let x = x1; x <= x2; x++) safeSetWall(x, y, true);
+
+        const gate1 = left + 3 + Math.floor(Math.random() * (right - left - 8));
+        for (let x = gate1; x <= gate1 + 2; x++) setWall(x, y, false);
+
+        if (Math.random() > 0.55) {
+          const gate2 = left + 3 + Math.floor(Math.random() * (right - left - 8));
+          for (let x = gate2; x <= gate2 + 2; x++) setWall(x, y, false);
+        }
+      });
+
+      // Add small random blocks to create dead-end-like details.
+      for (let i = 0; i < 20; i++) {
+        const x = left + 3 + Math.floor(Math.random() * (right - left - 6));
+        const y = top + 3 + Math.floor(Math.random() * (bottom - top - 6));
+        const len = 2 + Math.floor(Math.random() * 4);
+        const horizontal = Math.random() > 0.5;
+
+        for (let j = 0; j < len; j++) {
+          const bx = horizontal ? x + j : x;
+          const by = horizontal ? y : y + j;
+          safeSetWall(bx, by, true);
+        }
+      }
+
+      // Re-open the guaranteed path after random walls are generated.
+      guaranteedPath.forEach(([x, y]) => setWall(x, y, false));
+
+      // Make sure Nest and Food themselves are clear.
+      setWall(nest.x, nest.y, false);
+      setWall(food.x, food.y, false);
+
       fullReset(false);
     }
 
